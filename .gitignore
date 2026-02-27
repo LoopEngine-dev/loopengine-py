@@ -1,0 +1,16 @@
+# Byte-compiled / cache directories
+__pycache__/
+loopengine/__pycache__/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# uv cache and lock files
+.uv/
+uv.lock
+poetry.lock
+pipenv.lock
+*.pyc
+
