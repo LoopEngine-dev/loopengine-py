@@ -28,7 +28,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://loopengine.dev"
-Repository = "https://github.com/LoopEngine-dev/loopengine-sdks"
+Repository = "https://github.com/LoopEngine-dev/loopengine-py"
 
 [project.optional-dependencies]
 dev = ["pytest", "pytest-cov"]
