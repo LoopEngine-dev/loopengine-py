@@ -30,9 +30,22 @@ class AsyncLoopEngine:
             timeout=timeout,
         )
 
-    async def send(self, payload: Any | None) -> SendResult:
-        """Asynchronously send a feedback payload to LoopEngine."""
-        return await asyncio.to_thread(self._client.send, payload)
+    async def send(
+        self,
+        payload: Any | None,
+        *,
+        geo_lat: Optional[float] = None,
+        geo_lon: Optional[float] = None,
+    ) -> SendResult:
+        """Asynchronously send a feedback payload to LoopEngine.
+
+        Optionally pass geo_lat and geo_lon so feedback is associated with
+        device location; when both are provided they are included in the payload
+        and signature. Omit to use IP-based geo.
+        """
+        return await asyncio.to_thread(
+            self._client.send, payload, geo_lat=geo_lat, geo_lon=geo_lon
+        )
 
 
 __all__ = ["AsyncLoopEngine"]

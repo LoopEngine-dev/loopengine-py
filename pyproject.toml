@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "loopengine"
-version = "1.0.0"
+version = "1.1.0"
 description = "Official LoopEngine SDK for sending feedback to the Ingest API"
 readme = "README.md"
 requires-python = ">=3.9"

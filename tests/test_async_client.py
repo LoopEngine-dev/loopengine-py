@@ -15,7 +15,7 @@ def test_async_send_wraps_sync_client(monkeypatch) -> None:
         # Patch the underlying synchronous client's send to track calls and return a sentinel.
         orig_send = client._client.send  # type: ignore[attr-defined]
 
-        def fake_send(payload: Any):
+        def fake_send(payload: Any, *args: Any, **kwargs: Any) -> str:
             calls.append((payload,))
             return "ok"  # sentinel
 

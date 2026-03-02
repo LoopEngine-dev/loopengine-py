@@ -63,7 +63,13 @@ class LoopEngine:
         self._timeout = timeout
         self._transport: _Transport = transport or _default_transport
 
-    def _build_body(self, payload: Any) -> bytes:
+    def _build_body(
+        self,
+        payload: Any,
+        *,
+        geo_lat: Optional[float] = None,
+        geo_lon: Optional[float] = None,
+    ) -> bytes:
         if payload is None:
             m: MutableMapping[str, Any] = {}
         elif isinstance(payload, Mapping):
@@ -71,7 +77,13 @@ class LoopEngine:
         else:
             try:
                 # Convert arbitrary objects into a dict via JSON round-trip, mirroring Go behavior.
-                serialized = json.dumps(payload)
+                # Support objects with __dict__ (e.g. dataclasses, simple classes) via default.
+                def _default(o: Any) -> Any:
+                    if hasattr(o, "__dict__"):
+                        return vars(o)
+                    raise TypeError(f"Object of type {type(o).__name__!r} is not JSON serializable")
+
+                serialized = json.dumps(payload, default=_default)
                 decoded = json.loads(serialized)
             except (TypeError, ValueError) as exc:
                 raise LoopEngineError(message="loopengine: payload must be JSON-serializable") from exc
@@ -82,19 +94,36 @@ class LoopEngine:
         # Ensure project_id is set from the client configuration.
         m["project_id"] = self._project_id
 
+        # Optional device coordinates: only add when both are provided (backend expects both).
+        if geo_lat is not None and geo_lon is not None:
+            m["geo_lat"] = geo_lat
+            m["geo_lon"] = geo_lon
+
         try:
             body_bytes = json.dumps(m, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
         except (TypeError, ValueError) as exc:
             raise LoopEngineError(message="loopengine: failed to encode JSON body") from exc
         return body_bytes
 
-    def send(self, payload: FeedbackPayload | Any | None) -> SendResult:
+    def send(
+        self,
+        payload: FeedbackPayload | Any | None,
+        *,
+        geo_lat: Optional[float] = None,
+        geo_lon: Optional[float] = None,
+    ) -> SendResult:
         """Send a feedback payload to LoopEngine.
 
         The payload must be JSON-serializable and conform to your project's schema.
         `project_id` is injected from the client configuration.
+
+        Optionally pass geo_lat and geo_lon (latitude/longitude) so feedback is
+        associated with device location instead of IP-based geo. When both are
+        provided, they are added to the request body and included in the HMAC
+        signature. Omit both to use IP-based geolocation. Valid ranges:
+        latitude -90 to 90, longitude -180 to 180.
         """
-        body = self._build_body(payload)
+        body = self._build_body(payload, geo_lat=geo_lat, geo_lon=geo_lon)
         url = f"{self._base_url}{FEEDBACK_PATH}"
         headers = {
             "Content-Type": "application/json",

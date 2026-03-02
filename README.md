@@ -75,6 +75,22 @@ Payloads can be:
 - A mapping/dict (`dict[str, object]`)
 - Any JSON-serializable object (for example a dataclass) that encodes to a JSON object
 
+## Geolocation
+
+You can send device location so feedback is associated with coordinates instead of IP-based geo. Pass optional keyword-only arguments `geo_lat` and `geo_lon` to `send()`. When **both** are provided, the SDK adds `geo_lat` and `geo_lon` to the request body; they are included in the HMAC signature. Omit both to use IP-based geolocation. The API expects valid ranges: latitude -90 to 90, longitude -180 to 180.
+
+```python
+# Without geo (IP-based location is used)
+result = client.send({"message": "Feedback"})
+
+# With device coordinates
+result = client.send(
+    {"message": "Bug at my location"},
+    geo_lat=34.05,
+    geo_lon=-118.25,
+)
+```
+
 ## Quick test with `uv` and `clienttest`
 
 This repository includes a small `clienttest` example app you can run to verify your credentials and connectivity.

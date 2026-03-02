@@ -83,3 +83,30 @@ def test_constructor_rejects_missing_credentials() -> None:
     with pytest.raises(ValueError):
         LoopEngine("", "secret", "proj")
 
+
+def test_send_includes_geo_lat_geo_lon_when_both_provided() -> None:
+    transport, calls = make_mock_transport()
+    client = LoopEngine("pk", "secret", "proj_123", transport=transport)
+
+    result = client.send({"message": "hello"}, geo_lat=34.05, geo_lon=-118.25)
+
+    assert result.ok is True
+    _, body, _, _ = calls[0]
+    data = json.loads(body.decode("utf-8"))
+    assert data["project_id"] == "proj_123"
+    assert data["message"] == "hello"
+    assert data["geo_lat"] == 34.05
+    assert data["geo_lon"] == -118.25
+
+
+def test_send_omits_geo_when_only_one_provided() -> None:
+    transport, calls = make_mock_transport()
+    client = LoopEngine("pk", "secret", "proj_123", transport=transport)
+
+    client.send({"message": "hello"}, geo_lat=34.05)
+
+    _, body, _, _ = calls[0]
+    data = json.loads(body.decode("utf-8"))
+    assert "geo_lat" not in data
+    assert "geo_lon" not in data
+
