@@ -129,6 +129,88 @@ This repository includes a small `clienttest` example app you can run to verify 
    uv run examples/clienttest.py
    ```
 
+## Verifying webhook payloads
+
+When LoopEngine delivers a webhook to your endpoint, it signs the request with HMAC-SHA256 using a **signing secret** that only you and LoopEngine know. Verifying that signature before processing the event confirms the request came from LoopEngine, was not tampered with, and — by also checking the timestamp — limits replay attacks.
+
+**Get the secret:** In your dashboard, open your project → Webhooks. The signing secret (`whsec_live_...`) is shown when you create or rotate the webhook. Store it as an environment variable and never commit it.
+
+**Critical:** call `verify_webhook` with the raw request body bytes **before** any JSON parsing. The signature is computed over the exact bytes received; re-serialising the parsed payload will produce a different result and fail verification.
+
+```python
+from loopengine import verify_webhook
+```
+
+### Parameters
+
+| Parameter | Type | Description |
+|---|---|---|
+| `secret` | `str` | Signing secret from the dashboard (`whsec_live_...`) |
+| `raw_body` | `bytes` | Raw HTTP body as received, before any JSON parsing |
+| `signature_header` | `str` | Full value of the `X-LoopEngine-Signature` header |
+| `timestamp_header` | `str` | Value of the `X-LoopEngine-Timestamp` header (Unix seconds) |
+| `max_age_sec` | `int` (optional) | Max timestamp age in seconds; default `300`. Pass `0` to skip. |
+
+**Returns:** `bool` — `True` if valid, `False` if the signature does not match or the timestamp is outside the allowed window.
+
+### Flask example
+
+```python
+import os
+from flask import Flask, abort, request
+from loopengine import verify_webhook
+
+app = Flask(__name__)
+
+@app.post("/webhook")
+def webhook():
+    raw = request.get_data()  # raw bytes BEFORE any JSON parsing
+
+    if not verify_webhook(
+        os.environ["LOOPENGINE_WEBHOOK_SECRET"],
+        raw,
+        request.headers.get("X-LoopEngine-Signature", ""),
+        request.headers.get("X-LoopEngine-Timestamp", ""),
+    ):
+        abort(401)
+
+    event = request.get_json()   # parse AFTER verifying
+    print(event["type"])
+    return "", 200
+```
+
+### FastAPI example
+
+```python
+import os
+from fastapi import FastAPI, Header, HTTPException, Request
+
+from loopengine import verify_webhook
+
+app = FastAPI()
+
+@app.post("/webhook")
+async def webhook(
+    request: Request,
+    x_loopengine_signature: str = Header(default=""),
+    x_loopengine_timestamp: str = Header(default=""),
+):
+    raw = await request.body()  # raw bytes BEFORE any JSON parsing
+
+    if not verify_webhook(
+        os.environ["LOOPENGINE_WEBHOOK_SECRET"],
+        raw,
+        x_loopengine_signature,
+        x_loopengine_timestamp,
+    ):
+        raise HTTPException(status_code=401, detail="Invalid signature")
+
+    import json
+    event = json.loads(raw)     # parse AFTER verifying
+    print(event["type"])
+    return {"ok": True}
+```
+
 ## Development
 
 To run tests locally:
